@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- /player/<region>/<summoner>/<tagline>-->
+    <title>TFT Match History</title>
+    <script>
+        async function fetchMatchHistory() {
+            const puuid = document.getElementById("puuid").value;
+            const response = await fetch(`/match-history/${puuid}`);
+            const data = await response.json();
+
+            const resultDiv = document.getElementById("results");
+            resultDiv.innerHTML = ""; // Clear previous results
+
+            if (response.ok) {
+                data.forEach((match, index) => {
+                    // Get specific participant data for the given PUUID
+                    const participant = match.info.participants.find(p => p.puuid === puuid);
+
+                    if (!participant) return; // Skip if PUUID not found in this match
+
+                    const matchBox = document.createElement("div");
+                    matchBox.style.border = "1px solid #ccc";
+                    matchBox.style.margin = "10px";
+                    matchBox.style.padding = "10px";
+                    matchBox.style.cursor = "pointer";
+                    matchBox.setAttribute("data-expanded", "false"); // Track expanded state
+
+                    // Initially show user's stats only
+                    matchBox.innerHTML = `
+                        <h3>Match ${index + 1}</h3>
+                        <p><strong>Placement:</strong> ${participant.placement}</p>
+                        <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                        <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                        <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                        <p><em>(Click to expand for full match details)</em></p>
+                    `;
+
+                    // Add event listener to toggle expanded view
+                    matchBox.addEventListener("click", () => {
+                        const isExpanded = matchBox.getAttribute("data-expanded") === "true";
+                        if (isExpanded) {
+                            // Collapse view
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                                <p><em>(Click to expand for full match details)</em></p>
+                            `;
+                            matchBox.setAttribute("data-expanded", "false");
+                        } else {
+                            // Expand view with full match details
+                            const sortedParticipants = match.info.participants.sort((a, b) => a.placement - b.placement);
+
+                            const fullDetails = sortedParticipants.map(p => {
+                                return `
+                                    <div style="margin-bottom: 10px;">
+                                        <p><strong>Placement:</strong> ${p.placement}</p>
+                                        <p><strong>PUUID:</strong> ${p.puuid}</p>
+                                        <p><strong>Traits:</strong> ${p.traits.map(t => t.name).join(", ")}</p>
+                                        <p><strong>Units:</strong> ${p.units.map(u => u.character_id).join(", ")}</p>
+                                        <p><strong>Total Damage:</strong> ${p.total_damage_to_players}</p>
+                                    </div>
+                                `;
+                            }).join("");
+
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                                <h4>Full Match Details</h4>
+                                ${fullDetails}
+                                <p><em>(Click to collapse)</em></p>
+                            `;
+                            matchBox.setAttribute("data-expanded", "true");
+                        }
+                    });
+
+                    resultDiv.appendChild(matchBox);
+                });
+            } else {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>TFT Match History Viewer</h1>
+    <input type="text" id="puuid" placeholder="Enter PUUID" />
+    <button onclick="fetchMatchHistory()">Fetch Match History</button>
+    <div id="results" style="margin-top: 20px;"></div>
+</body>
+</html>

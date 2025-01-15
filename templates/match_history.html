@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFT Match History Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #results div {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        #results div:hover {
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>TFT Match History Viewer</h1>
+    <div id="results" style="margin-top: 20px;"></div>
+
+    <script>
+        // This function is executed as soon as the page loads.
+        async function fetchMatchHistory() {
+            const resultDiv = document.getElementById("results");
+            resultDiv.innerHTML = ""; // Clear previous results
+
+            try {
+                // Get the region, summoner, and tagline from the URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const region = urlParams.get('region');
+                const summoner = urlParams.get('summoner');
+                const tagline = urlParams.get('tagline');
+
+                if (!region || !summoner || !tagline) {
+                    resultDiv.innerHTML = "<p style='color: red;'>Invalid URL parameters. Ensure region, summoner, and tagline are provided.</p>";
+                    return;
+                }
+
+                const response = await fetch(`/player/${region}/${summoner}/${tagline}`);
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch match history: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("Fetched match data:", data);
+
+                if (data.length === 0) {
+                    resultDiv.innerHTML = "<p>No matches found for this summoner.</p>";
+                    return;
+                }
+
+                // Process each match
+                data.forEach((match, index) => {
+                    // Sort participants by placement
+                    const participantsByPlacement = [...match.info.participants].sort((a, b) => a.placement - b.placement);
+                    const participant = participantsByPlacement.find(p => p.puuid === match.puuid);
+
+                    if (!participant) return; // Skip if PUUID not found in this match
+
+                    // Create match box
+                    const matchBox = document.createElement("div");
+                    matchBox.setAttribute("data-expanded", "false");
+
+                    // Default view (collapsed)
+                    matchBox.innerHTML = `
+                        <h3>Match ${index + 1}</h3>
+                        <p><strong>Placement:</strong> ${participant.placement}</p>
+                        <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                        <p><strong>Traits:</strong> ${participant.traits ? participant.traits.map(t => t.name).join(", ") : "N/A"}</p>
+                        <p><strong>Augments:</strong> ${participant.augments ? participant.augments.join(", ") : "N/A"}</p>
+                        <p><strong>Champions:</strong> ${participant.units ? participant.units.map(u => `${u.character_id} (${u.tier}★)`).join(", ") : "N/A"}</p>
+                        <p><em>(Click to expand for all player details)</em></p>
+                    `;
+
+                    // Add click event listener to toggle expanded view
+                    matchBox.addEventListener("click", () => {
+                        const isExpanded = matchBox.getAttribute("data-expanded") === "true";
+                        if (isExpanded) {
+                            // Collapse view
+                            matchBox.setAttribute("data-expanded", "false");
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits ? participant.traits.map(t => t.name).join(", ") : "N/A"}</p>
+                                <p><strong>Augments:</strong> ${participant.augments ? participant.augments.join(", ") : "N/A"}</p>
+                                <p><strong>Champions:</strong> ${participant.units ? participant.units.map(u => `${u.character_id} (${u.tier}★)`).join(", ") : "N/A"}</p>
+                                <p><em>(Click to expand for all player details)</em></p>
+                            `;
+                        } else {
+                            // Expanded view
+                            matchBox.setAttribute("data-expanded", "true");
+                            let expandedContent = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits ? participant.traits.map(t => t.name).join(", ") : "N/A"}</p>
+                                <p><strong>Augments:</strong> ${participant.augments ? participant.augments.join(", ") : "N/A"}</p>
+                                <p><strong>Champions:</strong> ${participant.units ? participant.units.map(u => `${u.character_id} (${u.tier}★)`).join(", ") : "N/A"}</p>
+                                <h4>All Players:</h4>
+                                <ul>
+                            `;
+
+                            participantsByPlacement.forEach(player => {
+                                expandedContent += `
+                                    <li>
+                                        <p><strong>Placement:</strong> ${player.placement}</p>
+                                        <p><strong>PUUID:</strong> ${player.puuid}</p>
+                                        <p><strong>Traits:</strong> ${player.traits ? player.traits.map(t => t.name).join(", ") : "N/A"}</p>
+                                        <p><strong>Augments:</strong> ${player.augments ? player.augments.join(", ") : "N/A"}</p>
+                                        <p><strong>Champions:</strong> ${player.units ? player.units.map(u => `${u.character_id} (${u.tier}★)`).join(", ") : "N/A"}</p>
+                                    </li>
+                                    <hr />
+                                `;
+                            });
+
+                            expandedContent += "</ul><p><em>(Click to collapse)</em></p>";
+                            matchBox.innerHTML = expandedContent;
+                        }
+                    });
+
+                    resultDiv.appendChild(matchBox);
+                });
+            } catch (error) {
+                console.error("Error fetching match history:", error);
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Automatically fetch match history when the page loads
+        window.onload = fetchMatchHistory;
+    </script>
+</body>
+</html>

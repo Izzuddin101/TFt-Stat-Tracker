@@ -1,0 +1,17 @@
+/* Style for unit images to display in a horizontal row */
+.unit-container {
+    display: inline-block; /* Allows images to align horizontally */
+    margin-right: 10px;
+    text-align: center; /* Space between images */
+}
+
+.unit-image {
+    width: 80px; /* Set size of the unit images */
+    height: 80px;
+    object-fit: cover;
+}
+
+.star-rating {
+    margin-top: 5px;
+    text-align: center; /* Center align the stars below the images */
+}

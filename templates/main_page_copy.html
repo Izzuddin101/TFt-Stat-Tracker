@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFT Match History Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/main_page.css">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico.jpg') }}">
+</head>
+<body>
+
+    <div class="banner">
+        <h1>TFT Match History Viewer</h1>
+        <div class="banner-buttons">
+            <button class="button" onclick="navigateTo('stats_viewer')">Stats Viewer</button>
+            <button class="button" onclick="navigateTo('teambuilder')">Team Builder</button>
+        </div>
+    </div>
+
+    <!-- Main container for the search box -->
+    <form action="/player" method="get">
+        <div class="container">
+            <div class="search-box">
+                <!-- Region dropdown, username input, and search button in one line -->
+                <div class="input-row">
+                    <select id="region" name="region">
+                        <option value="NA">NA</option>
+                        <option value="EUW">EUW</option>
+                        <option value="EUNE">EUNE</option>
+                        <option value="KR">KR</option>
+                    </select>
+
+                    <input type="text" id="summoner" name="summoner" placeholder="Riot ID">
+                    <input type="text" id="tagline" name="tagline" placeholder="#tagline">
+
+                    <button type="submit"><b>Search</b></button>
+                </div>
+    </form>
+
+            <!-- Description text -->
+            <div class="description">
+                Search a TFT Player for Match History
+            </div>
+        </div>
+    </div>
+</form>
+
+    <script>
+        function navigateTo(page) {
+            if (page === 'players') {
+                window.location.href = '/players'; // Adjust URL to your route
+            } else if (page === 'teambuilder') {
+                window.location.href = '/teambuilder'; // Adjust URL to your route
+            }
+        }
+    </script>
+
+</body>
+</html>

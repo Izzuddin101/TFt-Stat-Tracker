@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFT Match History Viewer</title>
+    <script>
+        async function fetchMatchHistory() {
+            const region = document.getElementById("region").value;
+            const summoner = document.getElementById("summoner").value;
+            const tagline = document.getElementById("tagline").value;
+
+            const puuidResponse = await fetch(`/player/PUUID/${summoner}_${tagline}/${region}`);
+            const puuid = await puuidResponse.text(); // Assuming it's just text
+
+            const response = await fetch(`/player/${summoner}_${tagline}/${region}`);
+            const data = await response.json();
+
+            const resultDiv = document.getElementById("results");
+            resultDiv.innerHTML = ""; // Clear previous results
+
+            if (response.ok) {
+                data.forEach((match, index) => {
+                    const participant = match.info.participants.find(p => p.puuid === puuid);
+                    if (!participant) return; // Skip if PUUID not found in this match
+
+                    const matchBox = document.createElement("div");
+                    matchBox.style.border = "1px solid #ccc";
+                    matchBox.style.margin = "10px";
+                    matchBox.style.padding = "10px";
+                    matchBox.style.cursor = "pointer";
+                    matchBox.setAttribute("data-expanded", "false");
+
+                    matchBox.innerHTML = `
+                        <h3>Match ${index + 1}</h3>
+                        <p><strong>Placement:</strong> ${participant.placement}</p>
+                        <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                        <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                        <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                        <p><em>(Click to expand for full match details)</em></p>
+                    `;
+
+                    matchBox.addEventListener("click", () => {
+                        const isExpanded = matchBox.getAttribute("data-expanded") === "true";
+                        if (isExpanded) {
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                                <p><em>(Click to expand for full match details)</em></p>
+                            `;
+                            matchBox.setAttribute("data-expanded", "false");
+                        } else {
+                            const sortedParticipants = match.info.participants.sort((a, b) => a.placement - b.placement);
+
+                            const fullDetails = sortedParticipants.map(p => {
+                                return `
+                                    <div style="margin-bottom: 10px;">
+                                        <p><strong>Placement:</strong> ${p.placement}</p>
+                                        <p><strong>PUUID:</strong> ${p.puuid}</p>
+                                        <p><strong>Traits:</strong> ${p.traits.map(t => t.name).join(", ")}</p>
+                                        <p><strong>Units:</strong> ${p.units.map(u => u.character_id).join(", ")}</p>
+                                        <p><strong>Total Damage:</strong> ${p.total_damage_to_players}</p>
+                                    </div>
+                                `;
+                            }).join("");
+
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(", ")}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(", ")}</p>
+                                <h4>Full Match Details</h4>
+                                ${fullDetails}
+                                <p><em>(Click to collapse)</em></p>
+                            `;
+                            matchBox.setAttribute("data-expanded", "true");
+                        }
+                    });
+
+                    resultDiv.appendChild(matchBox);
+                });
+            } else {
+                resultDiv.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="banner">
+        <h1>TFT Match History Viewer</h1>
+        <form onsubmit="event.preventDefault(); fetchMatchHistory();">
+            <div class="container">
+                <div class="search-box">
+                    <div class="input-row">
+                        <select id="region" name="region">
+                            <option value="NA">NA</option>
+                            <option value="EUW">EUW</option>
+                            <option value="EUNE">EUNE</option>
+                            <option value="KR">KR</option>
+                        </select>
+                        <input type="text" id="summoner" name="summoner" placeholder="Search a Riot ID">
+                        <input type="text" id="tagline" name="tagline" placeholder="#Tagline">
+                        <button type="submit"><b>Search</b></button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="results" style="margin-top: 20px;"></div>
+</body>
+</html>

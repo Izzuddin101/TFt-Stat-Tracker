@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFT Match History Viewer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../static/main_page.css">
+    <style>
+        body { font-family: 'Open Sans', sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .match-container { margin-top: 20px; }
+        .match-box { border: 1px solid #ccc; padding: 15px; border-radius: 10px; background-color: #f9f9f9; margin-bottom: 10px; cursor: pointer; }
+        .match-box:hover { background-color: #f1f1f1; }
+        .match-details { display: none; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="banner">
+        <h1>TFT Match History Viewer</h1>
+        <div class="banner-buttons">
+            <button class="button" onclick="navigateTo('stats_viewer')">Stats Viewer</button>
+            <button class="button" onclick="navigateTo('teambuilder')">Team Builder</button>
+        </div>
+    </div>
+
+    <!-- Main container for the search box -->
+    <form id="search-form" action="/player" method="get">
+        <div class="container">
+            <div class="search-box">
+                <!-- Region dropdown, username input, and search button in one line -->
+                <div class="input-row">
+                    <select id="region" name="region">
+                        <option value="NA">NA</option>
+                        <option value="EUW">EUW</option>
+                        <option value="EUNE">EUNE</option>
+                        <option value="KR">KR</option>
+                    </select>
+
+                    <input type="text" id="summoner" name="summoner" placeholder="Search a Riot ID">
+                    <input type="text" id="tagline" name="tagline" placeholder="#tagline">
+
+                    <button type="button" onclick="fetchMatchHistory()"><b>Search</b></button>
+                </div>
+            </div>
+
+            <!-- Description text -->
+            <div class="description">
+                Search a TFT Player for Match History
+            </div>
+        </div>
+    </form>
+
+    <div id="match-container" class="match-container"></div>
+
+    <script>
+        function navigateTo(page) {
+            if (page === 'stats_viewer') {
+                window.location.href = '/stats_viewer'; // Adjust URL to your route
+            } else if (page === 'teambuilder') {
+                window.location.href = '/teambuilder'; // Adjust URL to your route
+            }
+        }
+
+        async function fetchMatchHistory() {
+            const region = document.getElementById('region').value;
+            const summoner = document.getElementById('summoner').value;
+            const tagline = document.getElementById('tagline').value;
+
+            const pDetailsResponse = await fetch(`/player/PUUID/${summoner}_${tagline}/${region}`);
+            const playerDetails = await pDetailsResponse.json();
+            const puuid = playerDetails.puuid;
+
+            const response = await fetch(`/player/${summoner}_${tagline}/${region}`);
+            const data = await response.json();
+
+
+            if (response.ok) {
+                document.getElementById('search-form').style.display = 'none'; // Hide the search form
+
+                const matchContainer = document.getElementById('match-container');
+                data.forEach((match, index) => {
+                    const participant = match.info.participants.find(p => p.puuid === puuid);
+                    if (!participant) return;
+
+                    const matchBox = document.createElement('div');
+                    matchBox.className = 'match-box';
+                    matchBox.innerHTML = `
+                        <h3>Match ${index + 1}</h3>
+                        <p><strong>Placement:</strong> ${participant.placement}</p>
+                        <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                        <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(', ')}</p>
+                        <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(', ')}</p>
+                        <p><em>(Click to expand for full match details)</em></p>
+                    `;
+
+                    matchBox.addEventListener('click', () => {
+                        const isExpanded = matchBox.getAttribute('data-expanded') === 'true';
+                        if (isExpanded) {
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(', ')}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(', ')}</p>
+                                <p><em>(Click to expand for full match details)</em></p>
+                            `;
+                            matchBox.setAttribute('data-expanded', 'false');
+                        } else {
+                            const sortedParticipants = match.info.participants.sort((a, b) => a.placement - b.placement);
+                            const fullDetails = sortedParticipants.map(p => `
+                                <div style="margin-bottom: 10px;">
+                                    <p><strong>Placement:</strong> ${p.placement}</p>
+                                    <p><strong>PUUID:</strong> ${p.puuid}</p>
+                                    <p><strong>Traits:</strong> ${p.traits.map(t => t.name).join(', ')}</p>
+                                    <p><strong>Units:</strong> ${p.units.map(u => u.character_id).join(', ')}</p>
+                                    <p><strong>Total Damage:</strong> ${p.total_damage_to_players}</p>
+                                </div>
+                            `).join('');
+
+                            matchBox.innerHTML = `
+                                <h3>Match ${index + 1}</h3>
+                                <p><strong>Placement:</strong> ${participant.placement}</p>
+                                <p><strong>Time Elapsed:</strong> ${Math.round(match.info.game_length / 60)} minutes</p>
+                                <p><strong>Traits:</strong> ${participant.traits.map(t => t.name).join(', ')}</p>
+                                <p><strong>Units:</strong> ${participant.units.map(u => u.character_id).join(', ')}</p>
+                                <h4>Full Match Details</h4>
+                                ${fullDetails}
+                                <p><em>(Click to collapse)</em></p>
+                            `;
+                            matchBox.setAttribute('data-expanded', 'true');
+                        }
+                    });
+
+                    matchContainer.appendChild(matchBox);
+                });
+            } else {
+                const matchContainer = document.getElementById('match-container');
+                matchContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+            }
+        }
+    </script>
+
+</body>
+</html>
